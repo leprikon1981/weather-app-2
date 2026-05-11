@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Погода</title>
+  <title>Погода v2</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -18,13 +18,28 @@
       padding: 40px 16px 60px;
     }
 
+    .app-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
     h1 {
       font-size: 2rem;
       font-weight: 300;
       letter-spacing: 4px;
       text-transform: uppercase;
-      margin-bottom: 8px;
       opacity: 0.9;
+    }
+    .version-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 3px 8px;
+      border-radius: 20px;
+      align-self: flex-start;
+      margin-top: 4px;
     }
     .subtitle {
       font-size: 0.78rem;
@@ -34,6 +49,7 @@
       text-transform: uppercase;
     }
 
+    /* Search */
     .search-box {
       display: flex;
       gap: 10px;
@@ -68,6 +84,7 @@
     .search-box button:hover { opacity: 0.88; transform: scale(1.02); }
     .search-box button:active { transform: scale(0.97); }
 
+    /* Quick picks */
     .quick-picks {
       display: flex;
       flex-wrap: wrap;
@@ -89,6 +106,7 @@
     }
     .quick-picks span:hover { background: rgba(255,255,255,0.16); }
 
+    /* Error / Loading */
     #error {
       display: none;
       color: #ff8a80;
@@ -102,13 +120,7 @@
       text-align: center;
       font-size: 0.9rem;
     }
-
-    #loading {
-      display: none;
-      font-size: 0.92rem;
-      opacity: 0.6;
-      margin-bottom: 20px;
-    }
+    #loading { display: none; font-size: 0.92rem; opacity: 0.6; margin-bottom: 20px; }
     .spinner {
       display: inline-block;
       width: 16px; height: 16px;
@@ -121,6 +133,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Weather card */
     #weather-card {
       display: none;
       max-width: 600px;
@@ -142,35 +155,72 @@
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .location { font-size: 1.55rem; font-weight: 600; line-height: 1.2; }
-    .location small {
-      display: block;
-      font-size: 0.88rem;
-      font-weight: 400;
-      opacity: 0.5;
-      margin-top: 4px;
-    }
+    .location small { display: block; font-size: 0.88rem; font-weight: 400; opacity: 0.5; margin-top: 4px; }
     .w-icon { font-size: 4rem; line-height: 1; }
 
+    /* ── Real-time clock ── */
+    .clock-block {
+      background: rgba(0,0,0,0.18);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .clock-left { flex: 1; }
+    .clock-time {
+      font-size: 2.8rem;
+      font-weight: 200;
+      letter-spacing: 3px;
+      font-variant-numeric: tabular-nums;
+      font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+      line-height: 1;
+    }
+    .clock-time .seconds { opacity: 0.45; font-size: 2rem; }
+    .clock-date {
+      font-size: 0.88rem;
+      opacity: 0.55;
+      margin-top: 6px;
+      text-transform: capitalize;
+    }
+    .clock-tz {
+      font-size: 0.7rem;
+      opacity: 0.3;
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+    .clock-right { text-align: right; }
+    .clock-day-night {
+      font-size: 2rem;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .clock-utc {
+      font-size: 0.72rem;
+      opacity: 0.35;
+      letter-spacing: 0.5px;
+    }
+
+    /* Weather info */
     .temp-main { font-size: 5rem; font-weight: 200; line-height: 1; margin-bottom: 8px; }
     .description { font-size: 1.05rem; opacity: 0.7; text-transform: capitalize; margin-bottom: 6px; }
     .feels-like { font-size: 0.88rem; opacity: 0.5; margin-bottom: 28px; }
 
     hr.divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin-bottom: 24px; }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     .stat { text-align: center; }
     .stat-icon { font-size: 1.35rem; margin-bottom: 6px; }
     .stat-value { font-size: 1.1rem; font-weight: 600; }
     .stat-label { font-size: 0.72rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 
-    /* Forecast card */
+    /* Forecast */
     #forecast-card {
       display: none;
       max-width: 600px;
@@ -189,12 +239,7 @@
       opacity: 0.45;
       margin-bottom: 16px;
     }
-    .forecast-days {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-    }
+    .forecast-days { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
     .forecast-day {
       flex: 1;
       min-width: 72px;
@@ -218,14 +263,9 @@
     .forecast-day .day-icon { font-size: 1.5rem; margin-bottom: 8px; }
     .forecast-day .day-max { font-size: 0.95rem; font-weight: 600; }
     .forecast-day .day-min { font-size: 0.85rem; opacity: 0.45; margin-left: 3px; }
-    .forecast-day .day-hint {
-      font-size: 0.62rem;
-      opacity: 0.35;
-      margin-top: 6px;
-      letter-spacing: 0.5px;
-    }
+    .forecast-day .day-hint { font-size: 0.62rem; opacity: 0.3; margin-top: 6px; letter-spacing: 0.5px; }
 
-    /* Day detail panel */
+    /* Day detail */
     #day-detail {
       overflow: hidden;
       max-height: 0;
@@ -233,49 +273,24 @@
       opacity: 0;
       margin-top: 0;
     }
-    #day-detail.open {
-      max-height: 400px;
-      opacity: 1;
-      margin-top: 16px;
-    }
+    #day-detail.open { max-height: 400px; opacity: 1; margin-top: 16px; }
     .detail-inner {
       background: rgba(255,255,255,0.06);
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 16px;
       padding: 20px;
     }
-    .detail-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .detail-date {
-      font-size: 1rem;
-      font-weight: 600;
-      text-transform: capitalize;
-    }
+    .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .detail-date { font-size: 1rem; font-weight: 600; text-transform: capitalize; }
     .detail-date small { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.5; margin-top: 2px; }
-    .detail-icon-desc {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .detail-icon-desc { display: flex; align-items: center; gap: 10px; }
     .detail-icon { font-size: 2.4rem; line-height: 1; }
     .detail-desc { font-size: 0.9rem; opacity: 0.75; }
-    .detail-temps {
-      font-size: 1.5rem;
-      font-weight: 300;
-      margin-bottom: 16px;
-    }
+    .detail-temps { font-size: 1.5rem; font-weight: 300; margin-bottom: 16px; }
     .detail-temps .max { font-weight: 600; }
     .detail-temps .min { opacity: 0.5; margin-left: 8px; }
     hr.detail-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin-bottom: 14px; }
-    .detail-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .detail-item { text-align: center; }
     .detail-item .di-icon { font-size: 1.1rem; margin-bottom: 4px; }
     .detail-item .di-val { font-size: 0.92rem; font-weight: 600; }
@@ -287,12 +302,12 @@
       padding-top: 14px;
       border-top: 1px solid rgba(255,255,255,0.07);
     }
-    .sun-item { text-align: center; font-size: 0.85rem; }
+    .sun-item { text-align: center; }
     .sun-item .sun-icon { font-size: 1.2rem; margin-bottom: 4px; }
-    .sun-item .sun-val { font-weight: 600; }
+    .sun-item .sun-val { font-size: 0.9rem; font-weight: 600; }
     .sun-item .sun-lbl { font-size: 0.68rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
 
-    /* suggestions dropdown */
+    /* Suggestions */
     .search-wrapper { position: relative; flex: 1; }
     #suggestions {
       display: none;
@@ -321,8 +336,11 @@
 </head>
 <body>
 
-<h1>&#127748; Погода</h1>
-<div class="subtitle">Без регистрации и API-ключа</div>
+<div class="app-title">
+  <h1>&#127748; Погода</h1>
+  <span class="version-badge">v2</span>
+</div>
+<div class="subtitle">Реальное время &middot; Без регистрации и API-ключа</div>
 
 <div class="search-box">
   <div class="search-wrapper">
@@ -354,6 +372,20 @@
     <div class="location" id="w-location"></div>
     <div class="w-icon" id="w-icon"></div>
   </div>
+
+  <!-- Real-time clock -->
+  <div class="clock-block">
+    <div class="clock-left">
+      <div class="clock-time" id="w-clock">--:--<span class="seconds">:--</span></div>
+      <div class="clock-date" id="w-clock-date">...</div>
+      <div class="clock-tz" id="w-clock-tz"></div>
+    </div>
+    <div class="clock-right">
+      <div class="clock-day-night" id="w-day-night"></div>
+      <div class="clock-utc" id="w-utc"></div>
+    </div>
+  </div>
+
   <div class="temp-main" id="w-temp"></div>
   <div class="description" id="w-desc"></div>
   <div class="feels-like" id="w-feels"></div>
@@ -420,11 +452,56 @@
   function wmo(code) { return WMO[code] || { icon:'🌡', label:'Неизвестно' }; }
 
   let selectedLocation = null;
-  let suggestTimeout = null;
-  let suggestResults = [];
-  let dailyData = null;
-  let activeDayIndex = null;
+  let suggestTimeout   = null;
+  let suggestResults   = [];
+  let dailyData        = null;
+  let activeDayIndex   = null;
+  let clockInterval    = null;
+  let clockTimezone    = null;
 
+  // ── Clock ──────────────────────────────────────────────
+  function startClock(timezone) {
+    clockTimezone = timezone;
+    if (clockInterval) clearInterval(clockInterval);
+    tickClock();
+    clockInterval = setInterval(tickClock, 1000);
+  }
+
+  function tickClock() {
+    if (!clockTimezone) return;
+    const now = new Date();
+
+    const hm = now.toLocaleTimeString('ru-RU', {
+      timeZone: clockTimezone, hour: '2-digit', minute: '2-digit'
+    });
+    const sec = now.toLocaleTimeString('ru-RU', {
+      timeZone: clockTimezone, second: '2-digit'
+    });
+    document.getElementById('w-clock').innerHTML =
+      `${hm}<span class="seconds">:${sec}</span>`;
+
+    document.getElementById('w-clock-date').textContent =
+      now.toLocaleDateString('ru-RU', {
+        timeZone: clockTimezone,
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+
+    // UTC offset label
+    const tzLabel = new Intl.DateTimeFormat('en', {
+      timeZone: clockTimezone, timeZoneName: 'short'
+    }).formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
+    document.getElementById('w-clock-tz').textContent = clockTimezone.replace('_', ' ');
+    document.getElementById('w-utc').textContent = tzLabel;
+
+    // Day / night icon based on local hour
+    const localHour = parseInt(now.toLocaleTimeString('en-US', {
+      timeZone: clockTimezone, hour: 'numeric', hour12: false
+    }), 10);
+    document.getElementById('w-day-night').textContent =
+      (localHour >= 6 && localHour < 21) ? '☀️' : '🌙';
+  }
+
+  // ── Search ─────────────────────────────────────────────
   function onInput() {
     selectedLocation = null;
     clearTimeout(suggestTimeout);
@@ -497,6 +574,7 @@
     }
   }
 
+  // ── Weather ────────────────────────────────────────────
   async function fetchWeather(loc) {
     setLoading(true);
     clearError();
@@ -507,16 +585,10 @@
         longitude: loc.longitude,
         current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure',
         daily: [
-          'weather_code',
-          'temperature_2m_max',
-          'temperature_2m_min',
-          'precipitation_sum',
-          'precipitation_hours',
-          'wind_speed_10m_max',
-          'wind_gusts_10m_max',
-          'uv_index_max',
-          'sunrise',
-          'sunset',
+          'weather_code','temperature_2m_max','temperature_2m_min',
+          'precipitation_sum','precipitation_hours',
+          'wind_speed_10m_max','wind_gusts_10m_max',
+          'uv_index_max','sunrise','sunset',
         ].join(','),
         timezone: 'auto',
         forecast_days: 7,
@@ -527,6 +599,7 @@
       dailyData = data.daily;
       renderWeather(data, loc);
       renderForecast(data.daily);
+      startClock(data.timezone);
     } catch (e) {
       showError(e.message);
       document.getElementById('weather-card').style.display = 'none';
@@ -551,6 +624,7 @@
     document.getElementById('weather-card').style.display = 'block';
   }
 
+  // ── Forecast ───────────────────────────────────────────
   function renderForecast(daily) {
     const today = new Date().toDateString();
     const html = daily.time.map((t, i) => {
@@ -571,11 +645,7 @@
   }
 
   function toggleDayDetail(i) {
-    if (activeDayIndex === i) {
-      closeDayDetail();
-      return;
-    }
-    // deactivate previous
+    if (activeDayIndex === i) { closeDayDetail(); return; }
     if (activeDayIndex !== null) {
       const prev = document.getElementById(`fday-${activeDayIndex}`);
       if (prev) prev.classList.remove('active');
@@ -598,26 +668,21 @@
   function renderDayDetail(i) {
     const d = dailyData;
     const dt = new Date(d.time[i]);
-    const meta = wmo(d.weather_code[i]);
-    const max  = Math.round(d.temperature_2m_max[i]);
-    const min  = Math.round(d.temperature_2m_min[i]);
-    const precip = d.precipitation_sum[i] ?? 0;
+    const meta    = wmo(d.weather_code[i]);
+    const max     = Math.round(d.temperature_2m_max[i]);
+    const min     = Math.round(d.temperature_2m_min[i]);
+    const precip  = d.precipitation_sum[i] ?? 0;
     const precipH = d.precipitation_hours[i] ?? 0;
-    const windMax  = Math.round(d.wind_speed_10m_max[i] ?? 0);
-    const gusts    = Math.round(d.wind_gusts_10m_max[i] ?? 0);
-    const uv       = d.uv_index_max[i] ?? '—';
-
+    const windMax = Math.round(d.wind_speed_10m_max[i] ?? 0);
+    const gusts   = Math.round(d.wind_gusts_10m_max[i] ?? 0);
+    const uv      = d.uv_index_max[i] ?? '—';
     const sunrise = formatTime(d.sunrise[i]);
     const sunset  = formatTime(d.sunset[i]);
-
     const dateStr = `${dt.getDate()} ${MONTHS[dt.getMonth()]}`;
 
     document.getElementById('detail-inner').innerHTML = `
       <div class="detail-header">
-        <div class="detail-date">
-          ${DAYS_FULL[dt.getDay()]}
-          <small>${dateStr}</small>
-        </div>
+        <div class="detail-date">${DAYS_FULL[dt.getDay()]}<small>${dateStr}</small></div>
         <div class="detail-icon-desc">
           <div class="detail-icon">${meta.icon}</div>
           <div class="detail-desc">${meta.label}</div>
@@ -676,8 +741,7 @@
 
   function formatTime(isoStr) {
     if (!isoStr) return '—';
-    const d = new Date(isoStr);
-    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return new Date(isoStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   }
 
   function setLoading(on) { document.getElementById('loading').style.display = on ? 'block' : 'none'; }
