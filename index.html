@@ -170,6 +170,7 @@
     .stat-value { font-size: 1.1rem; font-weight: 600; }
     .stat-label { font-size: 0.72rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 
+    /* Forecast card */
     #forecast-card {
       display: none;
       max-width: 600px;
@@ -199,13 +200,97 @@
       min-width: 72px;
       text-align: center;
       background: rgba(255,255,255,0.05);
+      border: 2px solid transparent;
       border-radius: 14px;
       padding: 12px 6px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      user-select: none;
+    }
+    .forecast-day:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+    .forecast-day.active {
+      background: rgba(102,126,234,0.2);
+      border-color: rgba(102,126,234,0.6);
+      transform: translateY(-2px);
     }
     .forecast-day .day-name { font-size: 0.76rem; opacity: 0.5; margin-bottom: 8px; }
+    .forecast-day.active .day-name { opacity: 0.9; }
     .forecast-day .day-icon { font-size: 1.5rem; margin-bottom: 8px; }
     .forecast-day .day-max { font-size: 0.95rem; font-weight: 600; }
     .forecast-day .day-min { font-size: 0.85rem; opacity: 0.45; margin-left: 3px; }
+    .forecast-day .day-hint {
+      font-size: 0.62rem;
+      opacity: 0.35;
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Day detail panel */
+    #day-detail {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.4s ease, opacity 0.3s ease, margin-top 0.3s ease;
+      opacity: 0;
+      margin-top: 0;
+    }
+    #day-detail.open {
+      max-height: 400px;
+      opacity: 1;
+      margin-top: 16px;
+    }
+    .detail-inner {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .detail-date {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .detail-date small { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.5; margin-top: 2px; }
+    .detail-icon-desc {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .detail-icon { font-size: 2.4rem; line-height: 1; }
+    .detail-desc { font-size: 0.9rem; opacity: 0.75; }
+    .detail-temps {
+      font-size: 1.5rem;
+      font-weight: 300;
+      margin-bottom: 16px;
+    }
+    .detail-temps .max { font-weight: 600; }
+    .detail-temps .min { opacity: 0.5; margin-left: 8px; }
+    hr.detail-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin-bottom: 14px; }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .detail-item { text-align: center; }
+    .detail-item .di-icon { font-size: 1.1rem; margin-bottom: 4px; }
+    .detail-item .di-val { font-size: 0.92rem; font-weight: 600; }
+    .detail-item .di-lbl { font-size: 0.68rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .sun-row {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    .sun-item { text-align: center; font-size: 0.85rem; }
+    .sun-item .sun-icon { font-size: 1.2rem; margin-bottom: 4px; }
+    .sun-item .sun-val { font-weight: 600; }
+    .sun-item .sun-lbl { font-size: 0.68rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
 
     /* suggestions dropdown */
     .search-wrapper { position: relative; flex: 1; }
@@ -295,12 +380,16 @@
 <div id="forecast-card">
   <h3>Прогноз на 7 дней</h3>
   <div class="forecast-days" id="forecast-days"></div>
+  <div id="day-detail">
+    <div class="detail-inner" id="detail-inner"></div>
+  </div>
 </div>
 
 <script>
-  const DAYS = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const DAYS_FULL  = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const MONTHS     = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 
-  // WMO weather code → { icon, label }
   const WMO = {
     0:  { icon:'☀️',  label:'Ясно' },
     1:  { icon:'🌤',  label:'Преимущественно ясно' },
@@ -328,13 +417,13 @@
     99: { icon:'⛈',  label:'Гроза с сильным градом' },
   };
 
-  function wmo(code) {
-    return WMO[code] || { icon:'🌡', label:'Неизвестно' };
-  }
+  function wmo(code) { return WMO[code] || { icon:'🌡', label:'Неизвестно' }; }
 
   let selectedLocation = null;
   let suggestTimeout = null;
   let suggestResults = [];
+  let dailyData = null;
+  let activeDayIndex = null;
 
   function onInput() {
     selectedLocation = null;
@@ -365,10 +454,7 @@
     if (!results.length) { hideSuggestions(); return; }
     box.innerHTML = results.map((r, i) => {
       const parts = [r.admin1, r.country].filter(Boolean).join(', ');
-      return `<div onclick="pickSuggestion(${i})">
-        ${r.name}
-        <small>${parts}</small>
-      </div>`;
+      return `<div onclick="pickSuggestion(${i})">${r.name}<small>${parts}</small></div>`;
     }).join('');
     box.style.display = 'block';
   }
@@ -393,10 +479,8 @@
   async function searchSelected() {
     hideSuggestions();
     if (selectedLocation) { fetchWeather(selectedLocation); return; }
-
     const q = document.getElementById('city-input').value.trim();
     if (!q) return;
-
     setLoading(true);
     clearError();
     try {
@@ -416,20 +500,33 @@
   async function fetchWeather(loc) {
     setLoading(true);
     clearError();
+    closeDayDetail();
     try {
       const params = new URLSearchParams({
         latitude: loc.latitude,
         longitude: loc.longitude,
         current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure',
-        daily: 'weather_code,temperature_2m_max,temperature_2m_min',
+        daily: [
+          'weather_code',
+          'temperature_2m_max',
+          'temperature_2m_min',
+          'precipitation_sum',
+          'precipitation_hours',
+          'wind_speed_10m_max',
+          'wind_gusts_10m_max',
+          'uv_index_max',
+          'sunrise',
+          'sunset',
+        ].join(','),
         timezone: 'auto',
         forecast_days: 7,
       });
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
       if (!res.ok) throw new Error('Ошибка получения данных: ' + res.status);
       const data = await res.json();
+      dailyData = data.daily;
       renderWeather(data, loc);
-      renderForecast(data);
+      renderForecast(data.daily);
     } catch (e) {
       showError(e.message);
       document.getElementById('weather-card').style.display = 'none';
@@ -443,54 +540,153 @@
     const c = data.current;
     const meta = wmo(c.weather_code);
     const parts = [loc.admin1, loc.country].filter(Boolean).join(', ');
-
-    document.getElementById('w-location').innerHTML =
-      `${loc.name}<small>${parts}</small>`;
+    document.getElementById('w-location').innerHTML = `${loc.name}<small>${parts}</small>`;
     document.getElementById('w-icon').textContent = meta.icon;
     document.getElementById('w-temp').textContent = `${Math.round(c.temperature_2m)}°C`;
     document.getElementById('w-desc').textContent = meta.label;
-    document.getElementById('w-feels').textContent =
-      `Ощущается как ${Math.round(c.apparent_temperature)}°C`;
+    document.getElementById('w-feels').textContent = `Ощущается как ${Math.round(c.apparent_temperature)}°C`;
     document.getElementById('w-humidity').textContent = `${c.relative_humidity_2m}%`;
     document.getElementById('w-wind').textContent = `${Math.round(c.wind_speed_10m)} км/ч`;
-    document.getElementById('w-pressure').textContent =
-      `${Math.round(c.surface_pressure * 0.750064)} мм`;
+    document.getElementById('w-pressure').textContent = `${Math.round(c.surface_pressure * 0.750064)} мм`;
     document.getElementById('weather-card').style.display = 'block';
   }
 
-  function renderForecast(data) {
-    const { time, weather_code, temperature_2m_max, temperature_2m_min } = data.daily;
+  function renderForecast(daily) {
     const today = new Date().toDateString();
-
-    const html = time.map((t, i) => {
+    const html = daily.time.map((t, i) => {
       const dt = new Date(t);
       if (dt.toDateString() === today) return '';
-      const meta = wmo(weather_code[i]);
-      const name = DAYS[dt.getDay()];
-      const max = Math.round(temperature_2m_max[i]);
-      const min = Math.round(temperature_2m_min[i]);
-      return `<div class="forecast-day">
-        <div class="day-name">${name}</div>
+      const meta = wmo(daily.weather_code[i]);
+      const max = Math.round(daily.temperature_2m_max[i]);
+      const min = Math.round(daily.temperature_2m_min[i]);
+      return `<div class="forecast-day" id="fday-${i}" onclick="toggleDayDetail(${i})">
+        <div class="day-name">${DAYS_SHORT[dt.getDay()]}</div>
         <div class="day-icon">${meta.icon}</div>
         <div><span class="day-max">${max}°</span><span class="day-min">${min}°</span></div>
+        <div class="day-hint">подробнее</div>
       </div>`;
     }).join('');
-
     document.getElementById('forecast-days').innerHTML = html;
     document.getElementById('forecast-card').style.display = 'block';
   }
 
-  function setLoading(on) {
-    document.getElementById('loading').style.display = on ? 'block' : 'none';
+  function toggleDayDetail(i) {
+    if (activeDayIndex === i) {
+      closeDayDetail();
+      return;
+    }
+    // deactivate previous
+    if (activeDayIndex !== null) {
+      const prev = document.getElementById(`fday-${activeDayIndex}`);
+      if (prev) prev.classList.remove('active');
+    }
+    activeDayIndex = i;
+    document.getElementById(`fday-${i}`).classList.add('active');
+    renderDayDetail(i);
+    document.getElementById('day-detail').classList.add('open');
   }
+
+  function closeDayDetail() {
+    if (activeDayIndex !== null) {
+      const el = document.getElementById(`fday-${activeDayIndex}`);
+      if (el) el.classList.remove('active');
+    }
+    activeDayIndex = null;
+    document.getElementById('day-detail').classList.remove('open');
+  }
+
+  function renderDayDetail(i) {
+    const d = dailyData;
+    const dt = new Date(d.time[i]);
+    const meta = wmo(d.weather_code[i]);
+    const max  = Math.round(d.temperature_2m_max[i]);
+    const min  = Math.round(d.temperature_2m_min[i]);
+    const precip = d.precipitation_sum[i] ?? 0;
+    const precipH = d.precipitation_hours[i] ?? 0;
+    const windMax  = Math.round(d.wind_speed_10m_max[i] ?? 0);
+    const gusts    = Math.round(d.wind_gusts_10m_max[i] ?? 0);
+    const uv       = d.uv_index_max[i] ?? '—';
+
+    const sunrise = formatTime(d.sunrise[i]);
+    const sunset  = formatTime(d.sunset[i]);
+
+    const dateStr = `${dt.getDate()} ${MONTHS[dt.getMonth()]}`;
+
+    document.getElementById('detail-inner').innerHTML = `
+      <div class="detail-header">
+        <div class="detail-date">
+          ${DAYS_FULL[dt.getDay()]}
+          <small>${dateStr}</small>
+        </div>
+        <div class="detail-icon-desc">
+          <div class="detail-icon">${meta.icon}</div>
+          <div class="detail-desc">${meta.label}</div>
+        </div>
+      </div>
+      <div class="detail-temps">
+        <span class="max">${max}°C</span>
+        <span class="min">${min}°C</span>
+      </div>
+      <hr class="detail-divider" />
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="di-icon">🌧</div>
+          <div class="di-val">${precip.toFixed(1)} мм</div>
+          <div class="di-lbl">Осадки</div>
+        </div>
+        <div class="detail-item">
+          <div class="di-icon">⏱</div>
+          <div class="di-val">${precipH} ч</div>
+          <div class="di-lbl">Часов дождя</div>
+        </div>
+        <div class="detail-item">
+          <div class="di-icon">🌬</div>
+          <div class="di-val">${windMax} км/ч</div>
+          <div class="di-lbl">Ветер макс</div>
+        </div>
+        <div class="detail-item">
+          <div class="di-icon">💨</div>
+          <div class="di-val">${gusts} км/ч</div>
+          <div class="di-lbl">Порывы</div>
+        </div>
+        <div class="detail-item">
+          <div class="di-icon">🔆</div>
+          <div class="di-val">${uv}</div>
+          <div class="di-lbl">УФ-индекс</div>
+        </div>
+        <div class="detail-item">
+          <div class="di-icon">🌡</div>
+          <div class="di-val">${max - min}°</div>
+          <div class="di-lbl">Перепад</div>
+        </div>
+      </div>
+      <div class="sun-row">
+        <div class="sun-item">
+          <div class="sun-icon">🌅</div>
+          <div class="sun-val">${sunrise}</div>
+          <div class="sun-lbl">Рассвет</div>
+        </div>
+        <div class="sun-item">
+          <div class="sun-icon">🌇</div>
+          <div class="sun-val">${sunset}</div>
+          <div class="sun-lbl">Закат</div>
+        </div>
+      </div>`;
+  }
+
+  function formatTime(isoStr) {
+    if (!isoStr) return '—';
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function setLoading(on) { document.getElementById('loading').style.display = on ? 'block' : 'none'; }
   function showError(msg) {
     const el = document.getElementById('error');
     el.textContent = msg;
     el.style.display = 'block';
   }
-  function clearError() {
-    document.getElementById('error').style.display = 'none';
-  }
+  function clearError() { document.getElementById('error').style.display = 'none'; }
 
   document.addEventListener('click', e => {
     if (!e.target.closest('.search-wrapper')) hideSuggestions();
