@@ -407,8 +407,8 @@
 
       if (!wiki.thumbnail?.source) return null;
 
-      // Wikimedia supports arbitrary thumbnail sizes — request 1200px wide
-      const src = wiki.thumbnail.source.replace(/\/\d+px-/, '/1200px-');
+      // Prefer full-resolution original; fall back to largest available thumbnail
+      const src = wiki.originalimage?.source || wiki.thumbnail.source;
       return {
         src,
         title: wiki.title,
