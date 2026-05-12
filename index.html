@@ -389,31 +389,63 @@
   let clockInterval    = null;
   let clockTimezone    = null;
 
-  // ── City image via Wikipedia REST API ──────────────────
-  async function fetchCityImage(cityNameRu) {
+  // ── City image: Nominatim reverse geocode → Wikipedia ────
+  const BAD_WORDS = /district|ward|municipality|borough|county|oblast|raion|okrug/i;
+
+  async function nominatimCity(lat, lon, zoom) {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}` +
+      `&format=json&accept-language=en&zoom=${zoom}`,
+      { headers: { 'User-Agent': 'WeatherAppV3/1.0' } }
+    );
+    const d = await r.json();
+    const a = d.address || {};
+    return a.city || a.town || a.village || a.county || a.province || a.state || d.name || null;
+  }
+
+  const BAD_IMG = /flag|coat.of.arm|emblem|seal_of|logo/i;
+  const BAD_DESC = /\b(state|province|territory|region|oblast|county)\b/i;
+
+  async function wikiImage(name) {
+    if (!name) return null;
+    const r = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`
+    );
+    const w = await r.json();
+    if (!w.thumbnail?.source || w.type === 'disambiguation') return null;
+    const src = w.originalimage?.source || w.thumbnail.source;
+    // Reject flags, coats of arms and state/province articles
+    if (BAD_IMG.test(src) || BAD_DESC.test(w.description || '')) return null;
+    return { src, title: w.title, url: w.content_urls?.desktop?.page };
+  }
+
+  async function fetchCityImage(loc) {
     try {
-      // 1. Get English city name from Open-Meteo (same API, instant)
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityNameRu)}&count=1&language=en&format=json`
-      );
-      const geoData = await geoRes.json();
-      const englishName = geoData.results?.[0]?.name || cityNameRu;
+      const { latitude: lat, longitude: lon } = loc;
 
-      // 2. Fetch Wikipedia page summary with thumbnail
-      const wikiRes = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(englishName)}`
-      );
-      const wiki = await wikiRes.json();
+      // 1. Try zoom=10 — returns city-level name for most places
+      let name = await nominatimCity(lat, lon, 10);
 
-      if (!wiki.thumbnail?.source) return null;
+      // 2. If too granular (district/ward/borough), retry with zoom=6
+      if (!name || BAD_WORDS.test(name)) {
+        name = await nominatimCity(lat, lon, 6);
+      }
 
-      // Prefer full-resolution original; fall back to largest available thumbnail
-      const src = wiki.originalimage?.source || wiki.thumbnail.source;
-      return {
-        src,
-        title: wiki.title,
-        url: wiki.content_urls?.desktop?.page,
-      };
+      // 3. Try Wikipedia with that name
+      let result = await wikiImage(name);
+      if (result) return result;
+
+      // 4. Fallback: search Wikipedia for "{name} city" to find capital/main city
+      for (const query of [name + ' city', name]) {
+        const search = await fetch(
+          `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json&origin=*`
+        );
+        const [, titles] = await search.json();
+        for (const t of (titles || [])) {
+          result = await wikiImage(t);
+          if (result) return result;
+        }
+      }
     } catch (_) {}
     return null;
   }
@@ -568,7 +600,7 @@
       // Fetch weather + city image in parallel
       const [res, imgResult] = await Promise.all([
         fetch(`https://api.open-meteo.com/v1/forecast?${params}`),
-        fetchCityImage(loc.name),
+        fetchCityImage(loc),
       ]);
 
       if (!res.ok) throw new Error('Ошибка получения данных: ' + res.status);
