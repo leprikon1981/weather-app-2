@@ -200,6 +200,7 @@
     .forecast-day .day-max  { font-size: 0.95rem; font-weight: 600; }
     .forecast-day .day-min  { font-size: 0.85rem; opacity: 0.45; margin-left: 3px; }
     .forecast-day .day-hint { font-size: 0.62rem; opacity: 0.3; margin-top: 6px; letter-spacing: 0.5px; }
+    .forecast-day .day-date { font-size: 0.66rem; opacity: 0.38; margin-top: 3px; }
 
     /* Day detail */
     #day-detail {
@@ -252,6 +253,71 @@
     #suggestions div:last-child { border-bottom: none; }
     #suggestions div:hover { background: rgba(255,255,255,0.1); }
     #suggestions div small { display: block; font-size: 0.75rem; opacity: 0.45; margin-top: 2px; }
+
+    /* ── Currency card ── */
+    #currency-card {
+      display: none; max-width: 600px; width: 100%;
+      background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
+      padding: 24px; margin-top: 20px; animation: fadeUp 0.4s ease 0.15s both;
+    }
+    #currency-card h3 {
+      font-size: 0.75rem; text-transform: uppercase;
+      letter-spacing: 2px; opacity: 0.45; margin-bottom: 18px;
+    }
+    .currency-hero {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.15); border-radius: 14px;
+      padding: 16px 20px; margin-bottom: 20px;
+    }
+    .currency-hero-name { font-size: 1rem; font-weight: 600; }
+    .currency-hero-name small { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.5; margin-top: 2px; }
+    .currency-hero-rate { font-size: 1.5rem; font-weight: 200; text-align: right; }
+    .currency-hero-rate small { display: block; font-size: 0.72rem; opacity: 0.45; margin-top: 2px; }
+
+    .calc-box {
+      background: rgba(255,255,255,0.05); border-radius: 14px;
+      padding: 16px 18px; margin-bottom: 20px;
+    }
+    .calc-box label { font-size: 0.72rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px; }
+    .calc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .calc-row input[type=number] {
+      flex: 1; min-width: 100px; padding: 10px 14px;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.25); color: #fff; font-size: 1.1rem;
+      font-weight: 600; outline: none;
+    }
+    .calc-row input[type=number]::-webkit-inner-spin-button { display: none; }
+    .calc-row select {
+      padding: 10px 12px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem;
+      cursor: pointer; outline: none;
+    }
+    .calc-arrow { font-size: 1.2rem; opacity: 0.4; }
+    .calc-result {
+      flex: 1; min-width: 100px; padding: 10px 14px;
+      border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(102,126,234,0.12); font-size: 1.1rem; font-weight: 600;
+      color: #a5b4fc; text-align: right;
+    }
+    .calc-swap {
+      padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: #fff; font-size: 1rem;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .calc-swap:hover { background: rgba(255,255,255,0.14); }
+
+    .rates-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .rate-item {
+      background: rgba(255,255,255,0.05); border-radius: 12px;
+      padding: 12px; text-align: center;
+    }
+    .rate-item .ri-code { font-size: 0.72rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .rate-item .ri-val  { font-size: 1rem; font-weight: 600; }
+    .rate-item .ri-name { font-size: 0.66rem; opacity: 0.35; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -347,10 +413,31 @@
   </div>
 </div>
 
+<div id="currency-card">
+  <h3>💱 Курс валют</h3>
+  <div class="currency-hero">
+    <div class="currency-hero-name" id="cur-name">—</div>
+    <div class="currency-hero-rate" id="cur-rate">—<small id="cur-rate-label"></small></div>
+  </div>
+  <div class="calc-box">
+    <label>Калькулятор</label>
+    <div class="calc-row">
+      <input type="number" id="calc-amount" value="100" min="0" oninput="calcCurrency()" />
+      <select id="calc-from" onchange="calcCurrency()"></select>
+      <span class="calc-arrow">→</span>
+      <div class="calc-result" id="calc-result">—</div>
+      <select id="calc-to" onchange="calcCurrency()"></select>
+      <button class="calc-swap" onclick="swapCalc()" title="Поменять местами">⇄</button>
+    </div>
+  </div>
+  <div class="rates-grid" id="rates-grid"></div>
+</div>
+
 <script>
-  const DAYS_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const DAYS_FULL  = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-  const MONTHS     = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const DAYS_SHORT   = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const DAYS_FULL    = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const MONTHS       = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 
   const WMO = {
     0:  { icon:'☀️',  label:'Ясно' },
@@ -611,6 +698,7 @@
       renderForecast(data.daily);
       startClock(data.timezone);
       showCityImage(imgResult);
+      fetchRates(loc.country_code);
     } catch (e) {
       showError(e.message);
       document.getElementById('weather-card').style.display = 'none';
@@ -646,6 +734,7 @@
       const min  = Math.round(daily.temperature_2m_min[i]);
       return `<div class="forecast-day" id="fday-${i}" onclick="toggleDayDetail(${i})">
         <div class="day-name">${DAYS_SHORT[dt.getDay()]}</div>
+        <div class="day-date">${dt.getDate()} ${MONTHS_SHORT[dt.getMonth()]}</div>
         <div class="day-icon">${meta.icon}</div>
         <div><span class="day-max">${max}°</span><span class="day-min">${min}°</span></div>
         <div class="day-hint">подробнее</div>
@@ -709,6 +798,161 @@
   function clearError()   { document.getElementById('error').style.display = 'none'; }
 
   document.addEventListener('click', e => { if (!e.target.closest('.search-wrapper')) hideSuggestions(); });
+
+  // ── Currency ────────────────────────────────────────────
+  const COUNTRY_CURRENCY = {
+    'AD':'EUR','AE':'AED','AF':'AFN','AL':'ALL','AM':'AMD','AO':'AOA','AR':'ARS',
+    'AT':'EUR','AU':'AUD','AZ':'AZN','BA':'BAM','BB':'BBD','BD':'BDT','BE':'EUR',
+    'BG':'BGN','BH':'BHD','BJ':'XOF','BN':'BND','BO':'BOB','BR':'BRL','BT':'BTN',
+    'BW':'BWP','BY':'BYN','BZ':'BZD','CA':'CAD','CD':'CDF','CF':'XAF','CG':'XAF',
+    'CH':'CHF','CL':'CLP','CM':'XAF','CN':'CNY','CO':'COP','CR':'CRC','CU':'CUP',
+    'CV':'CVE','CY':'EUR','CZ':'CZK','DE':'EUR','DK':'DKK','DO':'DOP','DZ':'DZD',
+    'EC':'USD','EE':'EUR','EG':'EGP','ES':'EUR','ET':'ETB','FI':'EUR','FJ':'FJD',
+    'FR':'EUR','GA':'XAF','GB':'GBP','GE':'GEL','GH':'GHS','GR':'EUR','GT':'GTQ',
+    'GY':'GYD','HN':'HNL','HR':'EUR','HT':'HTG','HU':'HUF','ID':'IDR','IE':'EUR',
+    'IL':'ILS','IN':'INR','IQ':'IQD','IR':'IRR','IS':'ISK','IT':'EUR','JM':'JMD',
+    'JO':'JOD','JP':'JPY','KE':'KES','KG':'KGS','KH':'KHR','KR':'KRW','KW':'KWD',
+    'KZ':'KZT','LA':'LAK','LB':'LBP','LK':'LKR','LR':'LRD','LT':'EUR','LU':'EUR',
+    'LV':'EUR','LY':'LYD','MA':'MAD','MD':'MDL','MK':'MKD','ML':'XOF','MM':'MMK',
+    'MN':'MNT','MT':'EUR','MU':'MUR','MV':'MVR','MW':'MWK','MX':'MXN','MY':'MYR',
+    'MZ':'MZN','NA':'NAD','NG':'NGN','NI':'NIO','NL':'EUR','NO':'NOK','NP':'NPR',
+    'NZ':'NZD','OM':'OMR','PA':'PAB','PE':'PEN','PG':'PGK','PH':'PHP','PK':'PKR',
+    'PL':'PLN','PT':'EUR','PY':'PYG','QA':'QAR','RO':'RON','RS':'RSD','RU':'RUB',
+    'RW':'RWF','SA':'SAR','SD':'SDG','SE':'SEK','SG':'SGD','SI':'EUR','SK':'EUR',
+    'SN':'XOF','SO':'SOS','SR':'SRD','SV':'USD','SY':'SYP','SZ':'SZL','TD':'XAF',
+    'TG':'XOF','TH':'THB','TJ':'TJS','TM':'TMT','TN':'TND','TR':'TRY','TT':'TTD',
+    'TW':'TWD','TZ':'TZS','UA':'UAH','UG':'UGX','US':'USD','UY':'UYU','UZ':'UZS',
+    'VE':'VES','VN':'VND','YE':'YER','ZA':'ZAR','ZM':'ZMW',
+  };
+
+  const CURRENCY_INFO = {
+    'USD':{ name:'Доллар США',        sym:'$'  },
+    'EUR':{ name:'Евро',              sym:'€'  },
+    'GBP':{ name:'Фунт стерлингов',   sym:'£'  },
+    'JPY':{ name:'Японская иена',     sym:'¥'  },
+    'CNY':{ name:'Юань',              sym:'¥'  },
+    'CHF':{ name:'Швейцарский франк', sym:'Fr' },
+    'AUD':{ name:'Австралийский $',   sym:'A$' },
+    'CAD':{ name:'Канадский $',       sym:'C$' },
+    'RUB':{ name:'Российский рубль',  sym:'₽'  },
+    'TRY':{ name:'Турецкая лира',     sym:'₺'  },
+    'INR':{ name:'Индийская рупия',   sym:'₹'  },
+    'BRL':{ name:'Бразильский реал',  sym:'R$' },
+    'KRW':{ name:'Вона',              sym:'₩'  },
+    'AED':{ name:'Дирхам ОАЭ',        sym:'د.إ'},
+    'MXN':{ name:'Мексиканский песо', sym:'$'  },
+    'SGD':{ name:'Сингапурский $',    sym:'S$' },
+    'NOK':{ name:'Норвежская крона',  sym:'kr' },
+    'SEK':{ name:'Шведская крона',    sym:'kr' },
+    'PLN':{ name:'Польский злотый',   sym:'zł' },
+    'CZK':{ name:'Чешская крона',     sym:'Kč' },
+    'HUF':{ name:'Венгерский форинт', sym:'Ft' },
+    'UAH':{ name:'Украинская гривна', sym:'₴'  },
+    'KZT':{ name:'Казахстанский тенге',sym:'₸' },
+    'GEL':{ name:'Грузинский лари',   sym:'₾'  },
+    'BYN':{ name:'Белорусский рубль', sym:'Br' },
+    'NZD':{ name:'Новозеландский $',  sym:'NZ$'},
+    'ZAR':{ name:'Южноафриканский рэнд',sym:'R'},
+    'IDR':{ name:'Индонезийская рупия',sym:'Rp'},
+    'MYR':{ name:'Малайзийский ринггит',sym:'RM'},
+    'THB':{ name:'Тайский бат',       sym:'฿'  },
+    'PHP':{ name:'Филиппинское песо', sym:'₱'  },
+    'ILS':{ name:'Израильский шекель',sym:'₪'  },
+    'SAR':{ name:'Саудовский риял',   sym:'ر.س'},
+    'QAR':{ name:'Катарский риял',    sym:'ر.ق'},
+  };
+
+  // Popular currencies to always show in the grid
+  const POPULAR = ['USD','EUR','GBP','JPY','CNY','CHF'];
+
+  let ratesCache    = null; // { base:'USD', rates:{...} }
+  let localCurrency = 'USD';
+
+  async function fetchRates(countryCode) {
+    localCurrency = COUNTRY_CURRENCY[countryCode?.toUpperCase()] || 'USD';
+    try {
+      if (!ratesCache) {
+        const r = await fetch('https://open.er-api.com/v6/latest/USD');
+        const d = await r.json();
+        if (d.result === 'success') ratesCache = d.rates;
+      }
+      renderCurrencyCard();
+    } catch (_) {
+      document.getElementById('currency-card').style.display = 'none';
+    }
+  }
+
+  function renderCurrencyCard() {
+    const rates = ratesCache;
+    if (!rates) return;
+    const code = localCurrency;
+    const info = CURRENCY_INFO[code] || { name: code, sym: code };
+    const rate = rates[code] ?? null;
+
+    // Hero: 1 USD = X local
+    document.getElementById('cur-name').innerHTML =
+      `<strong>${code}</strong> ${info.sym}<small>${info.name}</small>`;
+    if (rate) {
+      document.getElementById('cur-rate').innerHTML =
+        `${fmtRate(rate)} <span style="opacity:.4;font-size:1rem">${info.sym}</span><small style="display:block;font-size:.72rem;opacity:.45;margin-top:2px">= 1 USD</small>`;
+    }
+
+    // Populate dropdowns
+    const allCodes = [...new Set([code, ...POPULAR, ...Object.keys(CURRENCY_INFO)])];
+    const fromSel = document.getElementById('calc-from');
+    const toSel   = document.getElementById('calc-to');
+    [fromSel, toSel].forEach((sel, idx) => {
+      sel.innerHTML = allCodes.map(c => {
+        const ci = CURRENCY_INFO[c] || { name: c };
+        return `<option value="${c}" ${c === (idx===0 ? code : 'USD') ? 'selected' : ''}>${c} — ${ci.name}</option>`;
+      }).join('');
+    });
+
+    // Rates grid — popular + local
+    const gridCodes = [...new Set([...POPULAR, code])].filter(c => c !== 'USD' || code === 'USD');
+    document.getElementById('rates-grid').innerHTML = gridCodes.map(c => {
+      const ci = CURRENCY_INFO[c] || { name: c, sym: c };
+      const val = rates[c];
+      return `<div class="rate-item">
+        <div class="ri-code">${c}</div>
+        <div class="ri-val">${val ? fmtRate(val) : '—'} ${ci.sym}</div>
+        <div class="ri-name">= 1 USD</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('currency-card').style.display = 'block';
+    calcCurrency();
+  }
+
+  function fmtRate(val) {
+    if (val >= 100) return val.toFixed(0);
+    if (val >= 10)  return val.toFixed(2);
+    if (val >= 1)   return val.toFixed(3);
+    return val.toFixed(4);
+  }
+
+  function calcCurrency() {
+    const rates = ratesCache;
+    if (!rates) return;
+    const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
+    const from   = document.getElementById('calc-from').value;
+    const to     = document.getElementById('calc-to').value;
+    if (!rates[from] || !rates[to]) { document.getElementById('calc-result').textContent = '—'; return; }
+    // Convert via USD as base
+    const inUsd  = amount / rates[from];
+    const result = inUsd * rates[to];
+    const ci     = CURRENCY_INFO[to] || { sym: to };
+    document.getElementById('calc-result').textContent = `${fmtRate(result)} ${ci.sym}`;
+  }
+
+  function swapCalc() {
+    const from = document.getElementById('calc-from');
+    const to   = document.getElementById('calc-to');
+    const tmp  = from.value;
+    from.value = to.value;
+    to.value   = tmp;
+    calcCurrency();
+  }
 </script>
 </body>
 </html>
