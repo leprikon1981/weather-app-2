@@ -3,956 +3,147 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Погода v3</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 16px 60px;
-    }
-
-    .app-title { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    h1 { font-size: 2rem; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; opacity: 0.9; }
-    .version-badge {
-      font-size: 0.65rem; font-weight: 700; letter-spacing: 1px;
-      background: linear-gradient(135deg, #f093fb, #f5576c);
-      padding: 3px 8px; border-radius: 20px;
-      align-self: flex-start; margin-top: 4px;
-    }
-    .subtitle { font-size: 0.78rem; opacity: 0.35; letter-spacing: 2px; margin-bottom: 36px; text-transform: uppercase; }
-
-    /* Search */
-    .search-box { display: flex; gap: 10px; max-width: 600px; width: 100%; margin-bottom: 20px; }
-    .search-box input {
-      flex: 1; padding: 14px 20px; border-radius: 50px;
-      border: 2px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.07); color: #fff; font-size: 1rem; outline: none;
-      transition: border-color 0.2s;
-    }
-    .search-box input::placeholder { color: rgba(255,255,255,0.38); }
-    .search-box input:focus { border-color: rgba(255,255,255,0.38); }
-    .search-box button {
-      padding: 14px 28px; border-radius: 50px; border: none;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
-    }
-    .search-box button:hover { opacity: 0.88; transform: scale(1.02); }
-    .search-box button:active { transform: scale(0.97); }
-
-    /* Quick picks */
-    .quick-picks {
-      display: flex; flex-wrap: wrap; gap: 8px;
-      max-width: 600px; width: 100%; margin-bottom: 32px; justify-content: center;
-    }
-    .quick-picks span {
-      padding: 6px 16px; border-radius: 20px;
-      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-      font-size: 0.82rem; cursor: pointer; transition: background 0.2s; user-select: none;
-    }
-    .quick-picks span:hover { background: rgba(255,255,255,0.16); }
-
-    /* Error / Loading */
-    #error {
-      display: none; color: #ff8a80; background: rgba(255,0,0,0.08);
-      border: 1px solid rgba(255,0,0,0.2); border-radius: 10px;
-      padding: 12px 20px; max-width: 600px; width: 100%; margin-bottom: 20px;
-      text-align: center; font-size: 0.9rem;
-    }
-    #loading { display: none; font-size: 0.92rem; opacity: 0.6; margin-bottom: 20px; }
-    .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff;
-      border-radius: 50%; animation: spin 0.7s linear infinite;
-      vertical-align: middle; margin-right: 8px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Weather card */
-    #weather-card {
-      display: none; max-width: 600px; width: 100%;
-      background: rgba(255,255,255,0.07); backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
-      overflow: hidden; margin-bottom: 20px; animation: fadeUp 0.4s ease;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(14px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── City image banner ── */
-    .city-banner {
-      width: 100%; height: 200px;
-      position: relative; overflow: hidden;
-      background: linear-gradient(135deg, #1a2a4a 0%, #0f3460 100%);
-    }
-    .city-banner-shimmer {
-      position: absolute; inset: 0;
-      background: linear-gradient(90deg,
-        rgba(255,255,255,0.03) 0%,
-        rgba(255,255,255,0.08) 50%,
-        rgba(255,255,255,0.03) 100%);
-      background-size: 200% 100%;
-      animation: shimmer 1.8s infinite linear;
-    }
-    .city-banner-shimmer.hidden { display: none; }
-    @keyframes shimmer {
-      0%   { background-position: -200% 0; }
-      100% { background-position:  200% 0; }
-    }
-    #city-img {
-      width: 100%; height: 100%; object-fit: cover;
-      opacity: 0; transition: opacity 0.7s ease;
-      position: absolute; inset: 0; z-index: 1;
-    }
-    #city-img.loaded { opacity: 1; }
-    .city-banner-gradient {
-      position: absolute; inset: 0; z-index: 2;
-      background: linear-gradient(
-        to bottom,
-        rgba(10,15,35,0.15) 0%,
-        rgba(10,15,35,0.65) 100%
-      );
-    }
-    .city-banner-label {
-      position: absolute; bottom: 14px; right: 16px; z-index: 3;
-      font-size: 0.68rem; opacity: 0.45; letter-spacing: 0.5px;
-    }
-    .city-banner-label a { color: inherit; text-decoration: none; }
-    .city-banner-label a:hover { opacity: 0.8; text-decoration: underline; }
-
-    /* Card body padding */
-    .card-body { padding: 28px 32px 32px; }
-
-    .card-header {
-      display: flex; align-items: flex-start;
-      justify-content: space-between; margin-bottom: 20px;
-    }
-    .location { font-size: 1.55rem; font-weight: 600; line-height: 1.2; }
-    .location small { display: block; font-size: 0.88rem; font-weight: 400; opacity: 0.5; margin-top: 4px; }
-    .w-icon { font-size: 4rem; line-height: 1; }
-
-    /* Clock */
-    .clock-block {
-      background: rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 18px; padding: 18px 24px; margin-bottom: 24px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    }
-    .clock-left { flex: 1; }
-    .clock-time {
-      font-size: 2.8rem; font-weight: 200; letter-spacing: 3px;
-      font-variant-numeric: tabular-nums;
-      font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
-      line-height: 1;
-    }
-    .clock-time .seconds { opacity: 0.45; font-size: 2rem; }
-    .clock-date { font-size: 0.88rem; opacity: 0.55; margin-top: 6px; text-transform: capitalize; }
-    .clock-tz   { font-size: 0.7rem;  opacity: 0.3;  margin-top: 4px; letter-spacing: 0.5px; }
-    .clock-right { text-align: right; }
-    .clock-day-night { font-size: 2rem; line-height: 1; margin-bottom: 4px; }
-    .clock-utc { font-size: 0.72rem; opacity: 0.35; letter-spacing: 0.5px; }
-
-    .temp-main  { font-size: 5rem; font-weight: 200; line-height: 1; margin-bottom: 8px; }
-    .description { font-size: 1.05rem; opacity: 0.7; text-transform: capitalize; margin-bottom: 6px; }
-    .feels-like  { font-size: 0.88rem; opacity: 0.5; margin-bottom: 28px; }
-
-    hr.divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin-bottom: 24px; }
-
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .stat { text-align: center; }
-    .stat-icon  { font-size: 1.35rem; margin-bottom: 6px; }
-    .stat-value { font-size: 1.1rem; font-weight: 600; }
-    .stat-label { font-size: 0.72rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
-
-    /* Forecast */
-    #forecast-card {
-      display: none; max-width: 600px; width: 100%;
-      background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
-      padding: 24px; animation: fadeUp 0.4s ease 0.1s both;
-    }
-    #forecast-card h3 {
-      font-size: 0.75rem; text-transform: uppercase;
-      letter-spacing: 2px; opacity: 0.45; margin-bottom: 16px;
-    }
-    .forecast-days { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
-    .forecast-day {
-      flex: 1; min-width: 72px; text-align: center;
-      background: rgba(255,255,255,0.05); border: 2px solid transparent;
-      border-radius: 14px; padding: 12px 6px; cursor: pointer;
-      transition: background 0.2s, border-color 0.2s, transform 0.15s; user-select: none;
-    }
-    .forecast-day:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
-    .forecast-day.active {
-      background: rgba(102,126,234,0.2); border-color: rgba(102,126,234,0.6);
-      transform: translateY(-2px);
-    }
-    .forecast-day .day-name { font-size: 0.76rem; opacity: 0.5; margin-bottom: 8px; }
-    .forecast-day.active .day-name { opacity: 0.9; }
-    .forecast-day .day-icon { font-size: 1.5rem; margin-bottom: 8px; }
-    .forecast-day .day-max  { font-size: 0.95rem; font-weight: 600; }
-    .forecast-day .day-min  { font-size: 0.85rem; opacity: 0.45; margin-left: 3px; }
-    .forecast-day .day-hint { font-size: 0.62rem; opacity: 0.3; margin-top: 6px; letter-spacing: 0.5px; }
-    .forecast-day .day-date { font-size: 0.66rem; opacity: 0.38; margin-top: 3px; }
-
-    /* Day detail */
-    #day-detail {
-      overflow: hidden; max-height: 0;
-      transition: max-height 0.4s ease, opacity 0.3s ease, margin-top 0.3s ease;
-      opacity: 0; margin-top: 0;
-    }
-    #day-detail.open { max-height: 400px; opacity: 1; margin-top: 16px; }
-    .detail-inner {
-      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px; padding: 20px;
-    }
-    .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .detail-date { font-size: 1rem; font-weight: 600; text-transform: capitalize; }
-    .detail-date small { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.5; margin-top: 2px; }
-    .detail-icon-desc { display: flex; align-items: center; gap: 10px; }
-    .detail-icon { font-size: 2.4rem; line-height: 1; }
-    .detail-desc { font-size: 0.9rem; opacity: 0.75; }
-    .detail-temps { font-size: 1.5rem; font-weight: 300; margin-bottom: 16px; }
-    .detail-temps .max { font-weight: 600; }
-    .detail-temps .min { opacity: 0.5; margin-left: 8px; }
-    hr.detail-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin-bottom: 14px; }
-    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .detail-item { text-align: center; }
-    .detail-item .di-icon { font-size: 1.1rem; margin-bottom: 4px; }
-    .detail-item .di-val  { font-size: 0.92rem; font-weight: 600; }
-    .detail-item .di-lbl  { font-size: 0.68rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-    .sun-row {
-      display: flex; justify-content: space-around;
-      margin-top: 14px; padding-top: 14px;
-      border-top: 1px solid rgba(255,255,255,0.07);
-    }
-    .sun-item { text-align: center; }
-    .sun-item .sun-icon { font-size: 1.2rem; margin-bottom: 4px; }
-    .sun-item .sun-val  { font-size: 0.9rem; font-weight: 600; }
-    .sun-item .sun-lbl  { font-size: 0.68rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
-
-    /* Suggestions */
-    .search-wrapper { position: relative; flex: 1; }
-    #suggestions {
-      display: none; position: absolute; top: calc(100% + 6px);
-      left: 0; right: 0; background: #1e2a45;
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
-      overflow: hidden; z-index: 100; max-height: 220px; overflow-y: auto;
-    }
-    #suggestions div {
-      padding: 12px 18px; cursor: pointer; font-size: 0.92rem;
-      border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s;
-    }
-    #suggestions div:last-child { border-bottom: none; }
-    #suggestions div:hover { background: rgba(255,255,255,0.1); }
-    #suggestions div small { display: block; font-size: 0.75rem; opacity: 0.45; margin-top: 2px; }
-
-    /* ── Currency card ── */
-    #currency-card {
-      display: none; max-width: 600px; width: 100%;
-      background: rgba(255,255,255,0.04); backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
-      padding: 24px; margin-top: 20px; animation: fadeUp 0.4s ease 0.15s both;
-    }
-    #currency-card h3 {
-      font-size: 0.75rem; text-transform: uppercase;
-      letter-spacing: 2px; opacity: 0.45; margin-bottom: 18px;
-    }
-    .currency-hero {
-      display: flex; align-items: center; justify-content: space-between;
-      background: rgba(0,0,0,0.15); border-radius: 14px;
-      padding: 16px 20px; margin-bottom: 20px;
-    }
-    .currency-hero-name { font-size: 1rem; font-weight: 600; }
-    .currency-hero-name small { display: block; font-size: 0.78rem; font-weight: 400; opacity: 0.5; margin-top: 2px; }
-    .currency-hero-rate { font-size: 1.5rem; font-weight: 200; text-align: right; }
-    .currency-hero-rate small { display: block; font-size: 0.72rem; opacity: 0.45; margin-top: 2px; }
-
-    .calc-box {
-      background: rgba(255,255,255,0.05); border-radius: 14px;
-      padding: 16px 18px; margin-bottom: 20px;
-    }
-    .calc-box label { font-size: 0.72rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px; }
-    .calc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .calc-row input[type=number] {
-      flex: 1; min-width: 100px; padding: 10px 14px;
-      border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(0,0,0,0.25); color: #fff; font-size: 1.1rem;
-      font-weight: 600; outline: none;
-    }
-    .calc-row input[type=number]::-webkit-inner-spin-button { display: none; }
-    .calc-row select {
-      padding: 10px 12px; border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(0,0,0,0.3); color: #fff; font-size: 0.9rem;
-      cursor: pointer; outline: none;
-    }
-    .calc-arrow { font-size: 1.2rem; opacity: 0.4; }
-    .calc-result {
-      flex: 1; min-width: 100px; padding: 10px 14px;
-      border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(102,126,234,0.12); font-size: 1.1rem; font-weight: 600;
-      color: #a5b4fc; text-align: right;
-    }
-    .calc-swap {
-      padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.06); color: #fff; font-size: 1rem;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .calc-swap:hover { background: rgba(255,255,255,0.14); }
-
-    .rates-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-    }
-    .rate-item {
-      background: rgba(255,255,255,0.05); border-radius: 12px;
-      padding: 12px; text-align: center;
-    }
-    .rate-item .ri-code { font-size: 0.72rem; opacity: 0.45; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .rate-item .ri-val  { font-size: 1rem; font-weight: 600; }
-    .rate-item .ri-name { font-size: 0.66rem; opacity: 0.35; margin-top: 2px; }
-  </style>
+  <meta name="theme-color" content="#16213e" />
+  <meta name="description" content="Погода, прогноз, время и валюты без API-ключей." />
+  <title>Погода v4</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="app-title">
+          <h1>Погода</h1>
+          <span class="version-badge">v4</span>
+        </div>
+        <div class="subtitle">Фото города · Реальное время · Без ключей</div>
+      </div>
+      <button class="icon-button" id="theme-toggle" type="button" title="Переключить тему" aria-label="Переключить тему">◐</button>
+    </header>
 
-<div class="app-title">
-  <h1>&#127748; Погода</h1>
-  <span class="version-badge">v3</span>
-</div>
-<div class="subtitle">Фото города &middot; Реальное время &middot; Без ключей</div>
+    <section class="search-panel" aria-label="Поиск города">
+      <div class="search-box">
+        <div class="search-wrapper">
+          <input id="city-input" type="text" placeholder="Введите город или страну..." autocomplete="off" />
+          <div id="suggestions"></div>
+        </div>
+        <button id="search-button" type="button">Найти</button>
+      </div>
 
-<div class="search-box">
-  <div class="search-wrapper">
-    <input id="city-input" type="text" placeholder="Введите город или страну..."
-           oninput="onInput()" onkeydown="onKey(event)" autocomplete="off" />
-    <div id="suggestions"></div>
-  </div>
-  <button onclick="searchSelected()">Найти</button>
-</div>
+      <div class="action-row">
+        <button id="geo-button" class="secondary-button" type="button">Погода рядом со мной</button>
+        <button id="favorite-button" class="secondary-button" type="button" disabled>Добавить в избранное</button>
+      </div>
 
-<div class="quick-picks">
-  <span onclick="quickSearch('Москва')">Москва</span>
-  <span onclick="quickSearch('Санкт-Петербург')">Санкт-Петербург</span>
-  <span onclick="quickSearch('Лондон')">Лондон</span>
-  <span onclick="quickSearch('Нью-Йорк')">Нью-Йорк</span>
-  <span onclick="quickSearch('Токио')">Токио</span>
-  <span onclick="quickSearch('Дубай')">Дубай</span>
-  <span onclick="quickSearch('Париж')">Париж</span>
-  <span onclick="quickSearch('Берлин')">Берлин</span>
-  <span onclick="quickSearch('Пекин')">Пекин</span>
-  <span onclick="quickSearch('Сидней')">Сидней</span>
-</div>
+      <div class="saved-row" id="favorites-row" aria-label="Избранные города"></div>
+      <div class="saved-row muted-row" id="history-row" aria-label="История поиска"></div>
+    </section>
 
-<div id="loading"><span class="spinner"></span>Загрузка...</div>
-<div id="error"></div>
-
-<div id="weather-card">
-  <!-- City photo banner -->
-  <div class="city-banner" id="city-banner">
-    <div class="city-banner-shimmer" id="city-shimmer"></div>
-    <img id="city-img" alt="Фото города" />
-    <div class="city-banner-gradient"></div>
-    <div class="city-banner-label" id="city-img-credit"></div>
-  </div>
-
-  <div class="card-body">
-    <div class="card-header">
-      <div class="location" id="w-location"></div>
-      <div class="w-icon" id="w-icon"></div>
+    <div class="quick-picks">
+      <button type="button" data-city="Москва">Москва</button>
+      <button type="button" data-city="Санкт-Петербург">Санкт-Петербург</button>
+      <button type="button" data-city="Лондон">Лондон</button>
+      <button type="button" data-city="Нью-Йорк">Нью-Йорк</button>
+      <button type="button" data-city="Токио">Токио</button>
+      <button type="button" data-city="Дубай">Дубай</button>
+      <button type="button" data-city="Париж">Париж</button>
+      <button type="button" data-city="Берлин">Берлин</button>
+      <button type="button" data-city="Пекин">Пекин</button>
+      <button type="button" data-city="Сидней">Сидней</button>
     </div>
 
-    <!-- Real-time clock -->
-    <div class="clock-block">
-      <div class="clock-left">
-        <div class="clock-time" id="w-clock">--:--<span class="seconds">:--</span></div>
-        <div class="clock-date" id="w-clock-date">...</div>
-        <div class="clock-tz"   id="w-clock-tz"></div>
+    <div id="loading"><span class="spinner"></span>Загрузка...</div>
+    <div id="error" role="alert"></div>
+
+    <section id="weather-card">
+      <div class="city-banner" id="city-banner">
+        <div class="city-banner-shimmer" id="city-shimmer"></div>
+        <img id="city-img" alt="Фото города" />
+        <div class="city-banner-gradient"></div>
+        <div class="city-banner-label" id="city-img-credit"></div>
       </div>
-      <div class="clock-right">
-        <div class="clock-day-night" id="w-day-night"></div>
-        <div class="clock-utc"       id="w-utc"></div>
+
+      <div class="card-body">
+        <div class="card-header">
+          <div class="location" id="w-location"></div>
+          <div class="w-icon" id="w-icon"></div>
+        </div>
+
+        <div class="clock-block">
+          <div class="clock-left">
+            <div class="clock-time" id="w-clock">--:--<span class="seconds">:--</span></div>
+            <div class="clock-date" id="w-clock-date">...</div>
+            <div class="clock-tz" id="w-clock-tz"></div>
+          </div>
+          <div class="clock-right">
+            <div class="clock-day-night" id="w-day-night"></div>
+            <div class="clock-utc" id="w-utc"></div>
+          </div>
+        </div>
+
+        <div class="temp-main" id="w-temp"></div>
+        <div class="description" id="w-desc"></div>
+        <div class="feels-like" id="w-feels"></div>
+        <hr class="divider" />
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-icon">💧</div>
+            <div class="stat-value" id="w-humidity"></div>
+            <div class="stat-label">Влажность</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon">💨</div>
+            <div class="stat-value" id="w-wind"></div>
+            <div class="stat-label">Ветер</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon">🌡</div>
+            <div class="stat-value" id="w-pressure"></div>
+            <div class="stat-label">Давление</div>
+          </div>
+        </div>
+
+        <div class="extra-grid" id="extra-grid"></div>
       </div>
-    </div>
+    </section>
 
-    <div class="temp-main"   id="w-temp"></div>
-    <div class="description" id="w-desc"></div>
-    <div class="feels-like"  id="w-feels"></div>
-    <hr class="divider" />
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-icon">&#128167;</div>
-        <div class="stat-value" id="w-humidity"></div>
-        <div class="stat-label">Влажность</div>
+    <section class="info-card" id="hourly-card">
+      <h2>Почасовой прогноз</h2>
+      <div class="hourly-strip" id="hourly-strip"></div>
+    </section>
+
+    <section class="info-card" id="forecast-card">
+      <h2>Прогноз на 7 дней</h2>
+      <div class="forecast-days" id="forecast-days"></div>
+      <div id="day-detail">
+        <div class="detail-inner" id="detail-inner"></div>
       </div>
-      <div class="stat">
-        <div class="stat-icon">&#127788;</div>
-        <div class="stat-value" id="w-wind"></div>
-        <div class="stat-label">Ветер</div>
+    </section>
+
+    <section class="info-card" id="currency-card">
+      <h2>Курс валют</h2>
+      <div class="currency-hero">
+        <div class="currency-hero-name" id="cur-name">—</div>
+        <div class="currency-hero-rate" id="cur-rate">—</div>
       </div>
-      <div class="stat">
-        <div class="stat-icon">&#127777;</div>
-        <div class="stat-value" id="w-pressure"></div>
-        <div class="stat-label">Давление</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="forecast-card">
-  <h3>Прогноз на 7 дней</h3>
-  <div class="forecast-days" id="forecast-days"></div>
-  <div id="day-detail">
-    <div class="detail-inner" id="detail-inner"></div>
-  </div>
-</div>
-
-<div id="currency-card">
-  <h3>💱 Курс валют</h3>
-  <div class="currency-hero">
-    <div class="currency-hero-name" id="cur-name">—</div>
-    <div class="currency-hero-rate" id="cur-rate">—<small id="cur-rate-label"></small></div>
-  </div>
-  <div class="calc-box">
-    <label>Калькулятор</label>
-    <div class="calc-row">
-      <input type="number" id="calc-amount" value="100" min="0" oninput="calcCurrency()" />
-      <select id="calc-from" onchange="calcCurrency()"></select>
-      <span class="calc-arrow">→</span>
-      <div class="calc-result" id="calc-result">—</div>
-      <select id="calc-to" onchange="calcCurrency()"></select>
-      <button class="calc-swap" onclick="swapCalc()" title="Поменять местами">⇄</button>
-    </div>
-  </div>
-  <div class="rates-grid" id="rates-grid"></div>
-</div>
-
-<script>
-  const DAYS_SHORT   = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const DAYS_FULL    = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-  const MONTHS       = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
-  const MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
-
-  const WMO = {
-    0:  { icon:'☀️',  label:'Ясно' },
-    1:  { icon:'🌤',  label:'Преимущественно ясно' },
-    2:  { icon:'⛅',  label:'Переменная облачность' },
-    3:  { icon:'☁️',  label:'Пасмурно' },
-    45: { icon:'🌫',  label:'Туман' },
-    48: { icon:'🌫',  label:'Туман с изморозью' },
-    51: { icon:'🌦',  label:'Слабая морось' },
-    53: { icon:'🌦',  label:'Умеренная морось' },
-    55: { icon:'🌧',  label:'Сильная морось' },
-    61: { icon:'🌧',  label:'Слабый дождь' },
-    63: { icon:'🌧',  label:'Умеренный дождь' },
-    65: { icon:'🌧',  label:'Сильный дождь' },
-    71: { icon:'❄️',  label:'Слабый снег' },
-    73: { icon:'❄️',  label:'Умеренный снег' },
-    75: { icon:'❄️',  label:'Сильный снег' },
-    77: { icon:'🌨',  label:'Снежная крупа' },
-    80: { icon:'🌦',  label:'Слабые ливни' },
-    81: { icon:'🌧',  label:'Умеренные ливни' },
-    82: { icon:'⛈',  label:'Сильные ливни' },
-    85: { icon:'🌨',  label:'Снегопад' },
-    86: { icon:'🌨',  label:'Сильный снегопад' },
-    95: { icon:'⛈',  label:'Гроза' },
-    96: { icon:'⛈',  label:'Гроза с градом' },
-    99: { icon:'⛈',  label:'Гроза с сильным градом' },
-  };
-
-  function wmo(code) { return WMO[code] || { icon:'🌡', label:'Неизвестно' }; }
-
-  let selectedLocation = null;
-  let suggestTimeout   = null;
-  let suggestResults   = [];
-  let dailyData        = null;
-  let activeDayIndex   = null;
-  let clockInterval    = null;
-  let clockTimezone    = null;
-
-  // ── City image: Nominatim reverse geocode → Wikipedia ────
-  const BAD_WORDS = /district|ward|municipality|borough|county|oblast|raion|okrug/i;
-
-  async function nominatimCity(lat, lon, zoom) {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}` +
-      `&format=json&accept-language=en&zoom=${zoom}`,
-      { headers: { 'User-Agent': 'WeatherAppV3/1.0' } }
-    );
-    const d = await r.json();
-    const a = d.address || {};
-    return a.city || a.town || a.village || a.county || a.province || a.state || d.name || null;
-  }
-
-  const BAD_IMG = /flag|coat.of.arm|emblem|seal_of|logo/i;
-  const BAD_DESC = /\b(state|province|territory|region|oblast|county)\b/i;
-
-  async function wikiImage(name) {
-    if (!name) return null;
-    const r = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`
-    );
-    const w = await r.json();
-    if (!w.thumbnail?.source || w.type === 'disambiguation') return null;
-    const src = w.originalimage?.source || w.thumbnail.source;
-    // Reject flags, coats of arms and state/province articles
-    if (BAD_IMG.test(src) || BAD_DESC.test(w.description || '')) return null;
-    return { src, title: w.title, url: w.content_urls?.desktop?.page };
-  }
-
-  async function fetchCityImage(loc) {
-    try {
-      const { latitude: lat, longitude: lon } = loc;
-
-      // 1. Try zoom=10 — returns city-level name for most places
-      let name = await nominatimCity(lat, lon, 10);
-
-      // 2. If too granular (district/ward/borough), retry with zoom=6
-      if (!name || BAD_WORDS.test(name)) {
-        name = await nominatimCity(lat, lon, 6);
-      }
-
-      // 3. Try Wikipedia with that name
-      let result = await wikiImage(name);
-      if (result) return result;
-
-      // 4. Fallback: search Wikipedia for "{name} city" to find capital/main city
-      for (const query of [name + ' city', name]) {
-        const search = await fetch(
-          `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&format=json&origin=*`
-        );
-        const [, titles] = await search.json();
-        for (const t of (titles || [])) {
-          result = await wikiImage(t);
-          if (result) return result;
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  function showCityImage(result) {
-    const img = document.getElementById('city-img');
-    const shimmer = document.getElementById('city-shimmer');
-    const credit = document.getElementById('city-img-credit');
-
-    if (!result) {
-      shimmer.classList.add('hidden');
-      return;
-    }
-
-    img.onload = () => {
-      img.classList.add('loaded');
-      shimmer.classList.add('hidden');
-    };
-    img.onerror = () => {
-      shimmer.classList.add('hidden');
-      document.getElementById('city-banner').style.background =
-        'linear-gradient(135deg, #1a2a4a 0%, #0d2137 50%, #0f3460 100%)';
-    };
-    img.src = result.src;
-
-    if (result.title && result.url) {
-      credit.innerHTML = `<a href="${result.url}" target="_blank" rel="noopener">© Wikipedia: ${result.title}</a>`;
-    }
-  }
-
-  function resetCityImage() {
-    const img = document.getElementById('city-img');
-    const shimmer = document.getElementById('city-shimmer');
-    const credit = document.getElementById('city-img-credit');
-    img.classList.remove('loaded');
-    img.src = '';
-    shimmer.classList.remove('hidden');
-    credit.innerHTML = '';
-  }
-
-  // ── Clock ───────────────────────────────────────────────
-  function startClock(timezone) {
-    clockTimezone = timezone;
-    if (clockInterval) clearInterval(clockInterval);
-    tickClock();
-    clockInterval = setInterval(tickClock, 1000);
-  }
-
-  function tickClock() {
-    if (!clockTimezone) return;
-    const now = new Date();
-    const hm  = now.toLocaleTimeString('ru-RU', { timeZone: clockTimezone, hour: '2-digit', minute: '2-digit' });
-    const sec = now.toLocaleTimeString('ru-RU', { timeZone: clockTimezone, second: '2-digit' });
-    document.getElementById('w-clock').innerHTML = `${hm}<span class="seconds">:${sec}</span>`;
-    document.getElementById('w-clock-date').textContent = now.toLocaleDateString('ru-RU', {
-      timeZone: clockTimezone, weekday: 'long', day: 'numeric', month: 'long'
-    });
-    document.getElementById('w-clock-tz').textContent = clockTimezone.replace(/_/g, ' ');
-    const tzLabel = new Intl.DateTimeFormat('en', { timeZone: clockTimezone, timeZoneName: 'short' })
-      .formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
-    document.getElementById('w-utc').textContent = tzLabel;
-    const localHour = parseInt(now.toLocaleTimeString('en-US', {
-      timeZone: clockTimezone, hour: 'numeric', hour12: false
-    }), 10);
-    document.getElementById('w-day-night').textContent = (localHour >= 6 && localHour < 21) ? '☀️' : '🌙';
-  }
-
-  // ── Search ──────────────────────────────────────────────
-  function onInput() {
-    selectedLocation = null;
-    clearTimeout(suggestTimeout);
-    const q = document.getElementById('city-input').value.trim();
-    if (q.length < 2) { hideSuggestions(); return; }
-    suggestTimeout = setTimeout(() => fetchSuggestions(q), 350);
-  }
-
-  function onKey(e) {
-    if (e.key === 'Enter') { hideSuggestions(); searchSelected(); }
-    if (e.key === 'Escape') hideSuggestions();
-  }
-
-  async function fetchSuggestions(q) {
-    try {
-      const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=ru&format=json`
-      );
-      const data = await res.json();
-      suggestResults = data.results || [];
-      renderSuggestions(suggestResults);
-    } catch (_) {}
-  }
-
-  function renderSuggestions(results) {
-    const box = document.getElementById('suggestions');
-    if (!results.length) { hideSuggestions(); return; }
-    box.innerHTML = results.map((r, i) => {
-      const parts = [r.admin1, r.country].filter(Boolean).join(', ');
-      return `<div onclick="pickSuggestion(${i})">${r.name}<small>${parts}</small></div>`;
-    }).join('');
-    box.style.display = 'block';
-  }
-
-  function pickSuggestion(i) {
-    selectedLocation = suggestResults[i];
-    document.getElementById('city-input').value = selectedLocation.name;
-    hideSuggestions();
-    fetchWeather(selectedLocation);
-  }
-
-  function hideSuggestions() { document.getElementById('suggestions').style.display = 'none'; }
-
-  function quickSearch(city) {
-    document.getElementById('city-input').value = city;
-    selectedLocation = null;
-    searchSelected();
-  }
-
-  async function searchSelected() {
-    hideSuggestions();
-    if (selectedLocation) { fetchWeather(selectedLocation); return; }
-    const q = document.getElementById('city-input').value.trim();
-    if (!q) return;
-    setLoading(true); clearError();
-    try {
-      const res  = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=ru&format=json`);
-      const data = await res.json();
-      if (!data.results?.length) throw new Error('Город не найден. Проверьте написание.');
-      selectedLocation = data.results[0];
-      await fetchWeather(selectedLocation);
-    } catch (e) {
-      showError(e.message);
-      setLoading(false);
-    }
-  }
-
-  // ── Weather ─────────────────────────────────────────────
-  async function fetchWeather(loc) {
-    setLoading(true); clearError(); closeDayDetail(); resetCityImage();
-    try {
-      const params = new URLSearchParams({
-        latitude: loc.latitude, longitude: loc.longitude,
-        current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure',
-        daily: [
-          'weather_code','temperature_2m_max','temperature_2m_min',
-          'precipitation_sum','precipitation_hours',
-          'wind_speed_10m_max','wind_gusts_10m_max','uv_index_max','sunrise','sunset',
-        ].join(','),
-        timezone: 'auto',
-        forecast_days: 7,
-      });
-
-      // Fetch weather + city image in parallel
-      const [res, imgResult] = await Promise.all([
-        fetch(`https://api.open-meteo.com/v1/forecast?${params}`),
-        fetchCityImage(loc),
-      ]);
-
-      if (!res.ok) throw new Error('Ошибка получения данных: ' + res.status);
-      const data = await res.json();
-      dailyData = data.daily;
-
-      renderWeather(data, loc);
-      renderForecast(data.daily);
-      startClock(data.timezone);
-      showCityImage(imgResult);
-      fetchRates(loc.country_code);
-    } catch (e) {
-      showError(e.message);
-      document.getElementById('weather-card').style.display = 'none';
-      document.getElementById('forecast-card').style.display = 'none';
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function renderWeather(data, loc) {
-    const c    = data.current;
-    const meta = wmo(c.weather_code);
-    const parts = [loc.admin1, loc.country].filter(Boolean).join(', ');
-    document.getElementById('w-location').innerHTML = `${loc.name}<small>${parts}</small>`;
-    document.getElementById('w-icon').textContent    = meta.icon;
-    document.getElementById('w-temp').textContent    = `${Math.round(c.temperature_2m)}°C`;
-    document.getElementById('w-desc').textContent    = meta.label;
-    document.getElementById('w-feels').textContent   = `Ощущается как ${Math.round(c.apparent_temperature)}°C`;
-    document.getElementById('w-humidity').textContent = `${c.relative_humidity_2m}%`;
-    document.getElementById('w-wind').textContent    = `${Math.round(c.wind_speed_10m)} км/ч`;
-    document.getElementById('w-pressure').textContent = `${Math.round(c.surface_pressure * 0.750064)} мм`;
-    document.getElementById('weather-card').style.display = 'block';
-  }
-
-  // ── Forecast ────────────────────────────────────────────
-  function renderForecast(daily) {
-    const today = new Date().toDateString();
-    document.getElementById('forecast-days').innerHTML = daily.time.map((t, i) => {
-      const dt = new Date(t);
-      if (dt.toDateString() === today) return '';
-      const meta = wmo(daily.weather_code[i]);
-      const max  = Math.round(daily.temperature_2m_max[i]);
-      const min  = Math.round(daily.temperature_2m_min[i]);
-      return `<div class="forecast-day" id="fday-${i}" onclick="toggleDayDetail(${i})">
-        <div class="day-name">${DAYS_SHORT[dt.getDay()]}</div>
-        <div class="day-date">${dt.getDate()} ${MONTHS_SHORT[dt.getMonth()]}</div>
-        <div class="day-icon">${meta.icon}</div>
-        <div><span class="day-max">${max}°</span><span class="day-min">${min}°</span></div>
-        <div class="day-hint">подробнее</div>
-      </div>`;
-    }).join('');
-    document.getElementById('forecast-card').style.display = 'block';
-  }
-
-  function toggleDayDetail(i) {
-    if (activeDayIndex === i) { closeDayDetail(); return; }
-    if (activeDayIndex !== null) document.getElementById(`fday-${activeDayIndex}`)?.classList.remove('active');
-    activeDayIndex = i;
-    document.getElementById(`fday-${i}`).classList.add('active');
-    renderDayDetail(i);
-    document.getElementById('day-detail').classList.add('open');
-  }
-
-  function closeDayDetail() {
-    if (activeDayIndex !== null) document.getElementById(`fday-${activeDayIndex}`)?.classList.remove('active');
-    activeDayIndex = null;
-    document.getElementById('day-detail').classList.remove('open');
-  }
-
-  function renderDayDetail(i) {
-    const d = dailyData;
-    const dt  = new Date(d.time[i]);
-    const meta = wmo(d.weather_code[i]);
-    const max  = Math.round(d.temperature_2m_max[i]);
-    const min  = Math.round(d.temperature_2m_min[i]);
-    document.getElementById('detail-inner').innerHTML = `
-      <div class="detail-header">
-        <div class="detail-date">${DAYS_FULL[dt.getDay()]}<small>${dt.getDate()} ${MONTHS[dt.getMonth()]}</small></div>
-        <div class="detail-icon-desc">
-          <div class="detail-icon">${meta.icon}</div>
-          <div class="detail-desc">${meta.label}</div>
+      <div class="calc-box">
+        <label for="calc-amount">Калькулятор</label>
+        <div class="calc-row">
+          <input type="number" id="calc-amount" value="100" min="0" />
+          <select id="calc-from" aria-label="Из валюты"></select>
+          <span class="calc-arrow">→</span>
+          <div class="calc-result" id="calc-result">—</div>
+          <select id="calc-to" aria-label="В валюту"></select>
+          <button class="calc-swap" id="calc-swap" type="button" title="Поменять местами">⇄</button>
         </div>
       </div>
-      <div class="detail-temps"><span class="max">${max}°C</span><span class="min">${min}°C</span></div>
-      <hr class="detail-divider" />
-      <div class="detail-grid">
-        <div class="detail-item"><div class="di-icon">🌧</div><div class="di-val">${(d.precipitation_sum[i]??0).toFixed(1)} мм</div><div class="di-lbl">Осадки</div></div>
-        <div class="detail-item"><div class="di-icon">⏱</div><div class="di-val">${d.precipitation_hours[i]??0} ч</div><div class="di-lbl">Часов дождя</div></div>
-        <div class="detail-item"><div class="di-icon">🌬</div><div class="di-val">${Math.round(d.wind_speed_10m_max[i]??0)} км/ч</div><div class="di-lbl">Ветер макс</div></div>
-        <div class="detail-item"><div class="di-icon">💨</div><div class="di-val">${Math.round(d.wind_gusts_10m_max[i]??0)} км/ч</div><div class="di-lbl">Порывы</div></div>
-        <div class="detail-item"><div class="di-icon">🔆</div><div class="di-val">${d.uv_index_max[i]??'—'}</div><div class="di-lbl">УФ-индекс</div></div>
-        <div class="detail-item"><div class="di-icon">🌡</div><div class="di-val">${max-min}°</div><div class="di-lbl">Перепад</div></div>
-      </div>
-      <div class="sun-row">
-        <div class="sun-item"><div class="sun-icon">🌅</div><div class="sun-val">${formatTime(d.sunrise[i])}</div><div class="sun-lbl">Рассвет</div></div>
-        <div class="sun-item"><div class="sun-icon">🌇</div><div class="sun-val">${formatTime(d.sunset[i])}</div><div class="sun-lbl">Закат</div></div>
-      </div>`;
-  }
+      <div class="rates-grid" id="rates-grid"></div>
+    </section>
+  </main>
 
-  function formatTime(isoStr) {
-    if (!isoStr) return '—';
-    return new Date(isoStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function setLoading(on) { document.getElementById('loading').style.display = on ? 'block' : 'none'; }
-  function showError(msg) { const el = document.getElementById('error'); el.textContent = msg; el.style.display = 'block'; }
-  function clearError()   { document.getElementById('error').style.display = 'none'; }
-
-  document.addEventListener('click', e => { if (!e.target.closest('.search-wrapper')) hideSuggestions(); });
-
-  // ── Currency ────────────────────────────────────────────
-  const COUNTRY_CURRENCY = {
-    'AD':'EUR','AE':'AED','AF':'AFN','AL':'ALL','AM':'AMD','AO':'AOA','AR':'ARS',
-    'AT':'EUR','AU':'AUD','AZ':'AZN','BA':'BAM','BB':'BBD','BD':'BDT','BE':'EUR',
-    'BG':'BGN','BH':'BHD','BJ':'XOF','BN':'BND','BO':'BOB','BR':'BRL','BT':'BTN',
-    'BW':'BWP','BY':'BYN','BZ':'BZD','CA':'CAD','CD':'CDF','CF':'XAF','CG':'XAF',
-    'CH':'CHF','CL':'CLP','CM':'XAF','CN':'CNY','CO':'COP','CR':'CRC','CU':'CUP',
-    'CV':'CVE','CY':'EUR','CZ':'CZK','DE':'EUR','DK':'DKK','DO':'DOP','DZ':'DZD',
-    'EC':'USD','EE':'EUR','EG':'EGP','ES':'EUR','ET':'ETB','FI':'EUR','FJ':'FJD',
-    'FR':'EUR','GA':'XAF','GB':'GBP','GE':'GEL','GH':'GHS','GR':'EUR','GT':'GTQ',
-    'GY':'GYD','HN':'HNL','HR':'EUR','HT':'HTG','HU':'HUF','ID':'IDR','IE':'EUR',
-    'IL':'ILS','IN':'INR','IQ':'IQD','IR':'IRR','IS':'ISK','IT':'EUR','JM':'JMD',
-    'JO':'JOD','JP':'JPY','KE':'KES','KG':'KGS','KH':'KHR','KR':'KRW','KW':'KWD',
-    'KZ':'KZT','LA':'LAK','LB':'LBP','LK':'LKR','LR':'LRD','LT':'EUR','LU':'EUR',
-    'LV':'EUR','LY':'LYD','MA':'MAD','MD':'MDL','MK':'MKD','ML':'XOF','MM':'MMK',
-    'MN':'MNT','MT':'EUR','MU':'MUR','MV':'MVR','MW':'MWK','MX':'MXN','MY':'MYR',
-    'MZ':'MZN','NA':'NAD','NG':'NGN','NI':'NIO','NL':'EUR','NO':'NOK','NP':'NPR',
-    'NZ':'NZD','OM':'OMR','PA':'PAB','PE':'PEN','PG':'PGK','PH':'PHP','PK':'PKR',
-    'PL':'PLN','PT':'EUR','PY':'PYG','QA':'QAR','RO':'RON','RS':'RSD','RU':'RUB',
-    'RW':'RWF','SA':'SAR','SD':'SDG','SE':'SEK','SG':'SGD','SI':'EUR','SK':'EUR',
-    'SN':'XOF','SO':'SOS','SR':'SRD','SV':'USD','SY':'SYP','SZ':'SZL','TD':'XAF',
-    'TG':'XOF','TH':'THB','TJ':'TJS','TM':'TMT','TN':'TND','TR':'TRY','TT':'TTD',
-    'TW':'TWD','TZ':'TZS','UA':'UAH','UG':'UGX','US':'USD','UY':'UYU','UZ':'UZS',
-    'VE':'VES','VN':'VND','YE':'YER','ZA':'ZAR','ZM':'ZMW',
-  };
-
-  const CURRENCY_INFO = {
-    'USD':{ name:'Доллар США',        sym:'$'  },
-    'EUR':{ name:'Евро',              sym:'€'  },
-    'GBP':{ name:'Фунт стерлингов',   sym:'£'  },
-    'JPY':{ name:'Японская иена',     sym:'¥'  },
-    'CNY':{ name:'Юань',              sym:'¥'  },
-    'CHF':{ name:'Швейцарский франк', sym:'Fr' },
-    'AUD':{ name:'Австралийский $',   sym:'A$' },
-    'CAD':{ name:'Канадский $',       sym:'C$' },
-    'RUB':{ name:'Российский рубль',  sym:'₽'  },
-    'TRY':{ name:'Турецкая лира',     sym:'₺'  },
-    'INR':{ name:'Индийская рупия',   sym:'₹'  },
-    'BRL':{ name:'Бразильский реал',  sym:'R$' },
-    'KRW':{ name:'Вона',              sym:'₩'  },
-    'AED':{ name:'Дирхам ОАЭ',        sym:'د.إ'},
-    'MXN':{ name:'Мексиканский песо', sym:'$'  },
-    'SGD':{ name:'Сингапурский $',    sym:'S$' },
-    'NOK':{ name:'Норвежская крона',  sym:'kr' },
-    'SEK':{ name:'Шведская крона',    sym:'kr' },
-    'PLN':{ name:'Польский злотый',   sym:'zł' },
-    'CZK':{ name:'Чешская крона',     sym:'Kč' },
-    'HUF':{ name:'Венгерский форинт', sym:'Ft' },
-    'UAH':{ name:'Украинская гривна', sym:'₴'  },
-    'KZT':{ name:'Казахстанский тенге',sym:'₸' },
-    'GEL':{ name:'Грузинский лари',   sym:'₾'  },
-    'BYN':{ name:'Белорусский рубль', sym:'Br' },
-    'NZD':{ name:'Новозеландский $',  sym:'NZ$'},
-    'ZAR':{ name:'Южноафриканский рэнд',sym:'R'},
-    'IDR':{ name:'Индонезийская рупия',sym:'Rp'},
-    'MYR':{ name:'Малайзийский ринггит',sym:'RM'},
-    'THB':{ name:'Тайский бат',       sym:'฿'  },
-    'PHP':{ name:'Филиппинское песо', sym:'₱'  },
-    'ILS':{ name:'Израильский шекель',sym:'₪'  },
-    'SAR':{ name:'Саудовский риял',   sym:'ر.س'},
-    'QAR':{ name:'Катарский риял',    sym:'ر.ق'},
-  };
-
-  // Popular currencies to always show in the grid
-  const POPULAR = ['USD','EUR','GBP','JPY','CNY','CHF'];
-
-  let ratesCache    = null; // { base:'USD', rates:{...} }
-  let localCurrency = 'USD';
-
-  async function fetchRates(countryCode) {
-    localCurrency = COUNTRY_CURRENCY[countryCode?.toUpperCase()] || 'USD';
-    try {
-      if (!ratesCache) {
-        const r = await fetch('https://open.er-api.com/v6/latest/USD');
-        const d = await r.json();
-        if (d.result === 'success') ratesCache = d.rates;
-      }
-      renderCurrencyCard();
-    } catch (_) {
-      document.getElementById('currency-card').style.display = 'none';
-    }
-  }
-
-  function renderCurrencyCard() {
-    const rates = ratesCache;
-    if (!rates) return;
-    const code = localCurrency;
-    const info = CURRENCY_INFO[code] || { name: code, sym: code };
-    const rate = rates[code] ?? null;
-
-    // Hero: 1 USD = X local
-    document.getElementById('cur-name').innerHTML =
-      `<strong>${code}</strong> ${info.sym}<small>${info.name}</small>`;
-    if (rate) {
-      document.getElementById('cur-rate').innerHTML =
-        `${fmtRate(rate)} <span style="opacity:.4;font-size:1rem">${info.sym}</span><small style="display:block;font-size:.72rem;opacity:.45;margin-top:2px">= 1 USD</small>`;
-    }
-
-    // Populate dropdowns
-    const allCodes = [...new Set([code, ...POPULAR, ...Object.keys(CURRENCY_INFO)])];
-    const fromSel = document.getElementById('calc-from');
-    const toSel   = document.getElementById('calc-to');
-    [fromSel, toSel].forEach((sel, idx) => {
-      sel.innerHTML = allCodes.map(c => {
-        const ci = CURRENCY_INFO[c] || { name: c };
-        return `<option value="${c}" ${c === (idx===0 ? code : 'USD') ? 'selected' : ''}>${c} — ${ci.name}</option>`;
-      }).join('');
-    });
-
-    // Rates grid — popular + local
-    const gridCodes = [...new Set([...POPULAR, code])].filter(c => c !== 'USD' || code === 'USD');
-    document.getElementById('rates-grid').innerHTML = gridCodes.map(c => {
-      const ci = CURRENCY_INFO[c] || { name: c, sym: c };
-      const val = rates[c];
-      return `<div class="rate-item">
-        <div class="ri-code">${c}</div>
-        <div class="ri-val">${val ? fmtRate(val) : '—'} ${ci.sym}</div>
-        <div class="ri-name">= 1 USD</div>
-      </div>`;
-    }).join('');
-
-    document.getElementById('currency-card').style.display = 'block';
-    calcCurrency();
-  }
-
-  function fmtRate(val) {
-    if (val >= 100) return val.toFixed(0);
-    if (val >= 10)  return val.toFixed(2);
-    if (val >= 1)   return val.toFixed(3);
-    return val.toFixed(4);
-  }
-
-  function calcCurrency() {
-    const rates = ratesCache;
-    if (!rates) return;
-    const amount = parseFloat(document.getElementById('calc-amount').value) || 0;
-    const from   = document.getElementById('calc-from').value;
-    const to     = document.getElementById('calc-to').value;
-    if (!rates[from] || !rates[to]) { document.getElementById('calc-result').textContent = '—'; return; }
-    // Convert via USD as base
-    const inUsd  = amount / rates[from];
-    const result = inUsd * rates[to];
-    const ci     = CURRENCY_INFO[to] || { sym: to };
-    document.getElementById('calc-result').textContent = `${fmtRate(result)} ${ci.sym}`;
-  }
-
-  function swapCalc() {
-    const from = document.getElementById('calc-from');
-    const to   = document.getElementById('calc-to');
-    const tmp  = from.value;
-    from.value = to.value;
-    to.value   = tmp;
-    calcCurrency();
-  }
-</script>
+  <script src="app.js" defer></script>
 </body>
 </html>

@@ -9,15 +9,21 @@ Weather App 2 is a single-page Russian-language weather application using public
 Current features:
 - city search and suggestions via Open-Meteo geocoding;
 - current weather and 7-day forecast via Open-Meteo forecast API;
+- hourly forecast, extra weather metrics, and Open-Meteo air quality;
+- browser geolocation;
+- favorite cities and search history in `localStorage`;
 - city photo banner via Wikipedia/Wikimedia;
 - local clock for the selected location;
-- currency rates and calculator via open.er-api.com.
+- currency rates and calculator via open.er-api.com;
+- dark/light theme;
+- PWA manifest and service worker.
 
 ## Technical Shape
 
-- The app is currently a static site in `index.html`.
+- The app is currently a static site with `index.html`, `styles.css`, and `app.js`.
 - There is no build step, package manager, framework, or backend.
 - Keep changes compatible with opening `index.html` directly in a browser unless a task explicitly changes the architecture.
+- Use a local HTTP server for service worker/PWA checks.
 - Prefer small, focused edits over large rewrites.
 
 ## Collaboration Rules
@@ -52,4 +58,3 @@ Good next improvements:
 - add hourly forecast;
 - split `index.html` into `styles.css` and `app.js` if the file becomes hard to maintain;
 - add a small README with usage and API sources.
-
